@@ -60,7 +60,8 @@ fun PieChartView(
                     setValueTextSize(12f)
                     setValueFormatter(
                         object : com.github.mikephil.charting.formatter.ValueFormatter() {
-                            override fun getFormattedValue(value: Float): String {
+                            override fun getFormattedValue(value: Float):
+                                    String {
                                 val percent = (value / total * 100)
                                 return "R$ %.2f (%.1f%%)".format(value, percent)
                             }

@@ -23,43 +23,37 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.fabio.cashcontrol.data.SettingsStore
-import com.fabio.cashcontrol.data.TransactionRepositoryRoom
 import com.fabio.cashcontrol.data.io.CSVUtil
 import com.fabio.cashcontrol.model.Category
+import com.fabio.cashcontrol.model.Transaction
 import com.fabio.cashcontrol.model.TransactionType
 import kotlinx.coroutines.launch
 import java.io.File
 import java.time.LocalDate
 
-
-/* -------------------------
-   ✅ ENUMS
---------------------------*/
 enum class SortBy { DATE, VALUE }
 enum class SortDir { DESC, ASC }
-
 
 @OptIn(ExperimentalMaterialApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
-    repo: TransactionRepositoryRoom,
+    transactions: List<Transaction>,
     onBack: () -> Unit,
-    onEdit: (String) -> Unit
+    onEdit: (String) -> Unit,
+    onDelete: (Transaction) -> Unit
 ) {
 
-    val txList by repo.listAll().collectAsState(initial = emptyList())
     val snackbarHost = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    /* ✅ Carregar limite salvo */
+    /* Limite mensal */
     val savedLimit by SettingsStore.getMonthlyLimit(context)
         .collectAsState(initial = null)
 
-    /* ✅ State do limite */
     var monthlyLimit by remember { mutableStateOf(savedLimit) }
 
-    /* ✅ Filtros */
+    /* Filtros */
     val now = LocalDate.now()
 
     var selectedMonth by remember { mutableStateOf(now.monthValue) }
@@ -80,20 +74,20 @@ fun HistoryScreen(
 
     var query by remember { mutableStateOf("") }
 
-    /* ✅ Ordenação */
+    /* Ordenação */
     var sortBy by remember { mutableStateOf(SortBy.DATE) }
     var sortDir by remember { mutableStateOf(SortDir.DESC) }
     var sortMenuExpanded by remember { mutableStateOf(false) }
 
-    /* ✅ Calcular total do mês */
-    val monthlyExpense = txList
+    /* Calcular total do mês */
+    val monthlyExpense = transactions
         .filter { it.date.monthValue == selectedMonth && it.date.year == selectedYear && it.type == TransactionType.EXPENSE }
         .sumOf { it.value }
 
     val overLimit = monthlyLimit?.let { monthlyExpense > it } ?: false
 
-    /* ✅ Aplicar filtros + ordenação */
-    val filtered = txList
+    /* Aplicar filtros */
+    val filtered = transactions
         .filter { it.date.year == selectedYear && it.date.monthValue == selectedMonth }
         .filter { typeFilter?.let { t -> it.type == t } ?: true }
         .filter { categoryFilter?.let { c -> it.category == c } ?: true }
@@ -118,12 +112,10 @@ fun HistoryScreen(
             }
         }
 
-    val totals = repo.totals(filtered)
+    val totalsIncome = filtered.filter { it.type == TransactionType.INCOME }.sumOf { it.value }
+    val totalsExpense = filtered.filter { it.type == TransactionType.EXPENSE }.sumOf { it.value }
+    val totalsBalance = totalsIncome - totalsExpense
 
-
-    /* =======================
-       ✅ UI
-    ======================== */
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -131,7 +123,6 @@ fun HistoryScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
 
-        /* ✅ TOP BAR */
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
@@ -150,7 +141,6 @@ fun HistoryScreen(
 
             Spacer(Modifier.weight(1f))
 
-            /* ✅ Botão Exportar */
             IconButton(onClick = {
 
                 val csv = CSVUtil.export(filtered)
@@ -183,16 +173,12 @@ fun HistoryScreen(
             }
         }
 
-
-        /* ============================================================
-           ✅ Filtros — MÊS / ANO
-        ============================================================ */
+        /* Filtros de Mês e Ano */
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
 
-            /* MÊS ▼ */
             ExposedDropdownMenuBox(
                 expanded = expandedMonth,
                 onExpandedChange = { expandedMonth = !expandedMonth }
@@ -224,7 +210,6 @@ fun HistoryScreen(
                 }
             }
 
-            /* ANO ▼ */
             ExposedDropdownMenuBox(
                 expanded = expandedYear,
                 onExpandedChange = { expandedYear = !expandedYear }
@@ -257,10 +242,7 @@ fun HistoryScreen(
             }
         }
 
-
-        /* ============================================================
-           ✅ Busca + Ordenação
-        ============================================================ */
+        /* Busca + Ordenação */
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth()
@@ -277,7 +259,6 @@ fun HistoryScreen(
                 )
             )
 
-            /* Ordenar ▼ */
             Box {
 
                 OutlinedButton(onClick = { sortMenuExpanded = true }) {
@@ -337,10 +318,7 @@ fun HistoryScreen(
             }
         }
 
-
-        /* ============================================================
-           ✅ LIMITE MENSAL
-        ============================================================ */
+        /* Limite mensal */
         OutlinedTextField(
             value = monthlyLimit?.toString() ?: "",
             onValueChange = {
@@ -353,7 +331,6 @@ fun HistoryScreen(
             modifier = Modifier.fillMaxWidth()
         )
 
-
         if (overLimit) {
             Text(
                 "⚠ Gastos excederam o limite!",
@@ -361,21 +338,12 @@ fun HistoryScreen(
             )
         }
 
-
-        /* ============================================================
-           ✅ Totais
-        ============================================================ */
-        Text("Receitas: R$ %.2f".format(totals.income))
-        Text("Despesas: R$ %.2f".format(totals.expense))
-        Text("Saldo: R$ %.2f".format(totals.balance))
-
+        Text("Receitas: R$ %.2f".format(totalsIncome))
+        Text("Despesas: R$ %.2f".format(totalsExpense))
+        Text("Saldo: R$ %.2f".format(totalsBalance))
 
         Spacer(Modifier.height(12.dp))
 
-
-        /* ============================================================
-           ✅ Lista de Transações
-        ============================================================ */
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier.weight(1f)
@@ -385,16 +353,14 @@ fun HistoryScreen(
 
                 val dismissState = rememberDismissState(
                     confirmStateChange = { newValue ->
-                        when {
-                            newValue == DismissValue.DismissedToStart -> {
-                                scope.launch {
-                                    repo.deleteById(tx.id)
-                                    snackbarHost.showSnackbar("Transação excluída")
-                                }
+                        when (newValue) {
+
+                            DismissValue.DismissedToStart -> {
+                                onDelete(tx)
                                 true
                             }
 
-                            newValue == DismissValue.DismissedToEnd -> {
+                            DismissValue.DismissedToEnd -> {
                                 onEdit(tx.id)
                                 false
                             }
@@ -403,7 +369,6 @@ fun HistoryScreen(
                         }
                     }
                 )
-
 
                 SwipeToDismiss(
                     state = dismissState,
@@ -470,7 +435,6 @@ fun HistoryScreen(
                 Divider()
             }
         }
-
 
         SnackbarHost(hostState = snackbarHost)
     }

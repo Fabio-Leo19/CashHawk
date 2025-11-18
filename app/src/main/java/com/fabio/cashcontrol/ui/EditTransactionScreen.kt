@@ -8,12 +8,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.fabio.cashcontrol.data.TransactionRepositoryRoom
 import com.fabio.cashcontrol.model.Category
+import com.fabio.cashcontrol.model.Transaction
 import com.fabio.cashcontrol.model.TransactionType
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import java.time.LocalDate
+
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -23,36 +22,27 @@ import androidx.compose.material3.rememberDatePickerState
 @Composable
 fun EditTransactionScreen(
     id: String,
-    repo: TransactionRepositoryRoom,
-    onSave: () -> Unit,
+    transaction: Transaction?,
+    onSave: (Transaction) -> Unit,
     onCancel: () -> Unit,
-    onDelete: () -> Unit = {}
+    onDelete: (Transaction) -> Unit
 ) {
-    val scope = rememberCoroutineScope()
-    val snackbar = remember { SnackbarHostState() }
-
-    /* ----------------------------------------
-       ✅ Busca transação
-    -----------------------------------------*/
-    val txList by repo.listAll().collectAsState(initial = emptyList())
-    val tx = remember(txList, id) { txList.find { it.id == id } }
-
-    if (tx == null) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    if (transaction == null) {
+        Box(
+            Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
             Text("Carregando…")
         }
         return
     }
 
-    /* ----------------------------------------
-       ✅ Estados
-    -----------------------------------------*/
-    var description by remember { mutableStateOf(tx.description) }
-    var valueText by remember { mutableStateOf(tx.value.toString()) }
-    var type by remember { mutableStateOf(tx.type) }
-    var selectedDate by remember { mutableStateOf(tx.date) }
+    var description by remember { mutableStateOf(transaction.description) }
+    var valueText by remember { mutableStateOf(transaction.value.toString()) }
+    var type by remember { mutableStateOf(transaction.type) }
+    var selectedDate by remember { mutableStateOf(transaction.date) }
 
-    var selectedCategory by remember { mutableStateOf(tx.category) }
+    var selectedCategory by remember { mutableStateOf(transaction.category) }
     var categoryExpanded by remember { mutableStateOf(false) }
     val categories = Category.values().toList()
 
@@ -60,9 +50,6 @@ fun EditTransactionScreen(
     val isValueError = valueText.isNotBlank() && valueDouble == null
     val canSave = description.isNotBlank() && valueDouble != null && valueDouble > 0
 
-    /* ----------------------------------------
-       ✅ DatePicker
-    -----------------------------------------*/
     var showDatePicker by remember { mutableStateOf(false) }
     val dateState = rememberDatePickerState()
 
@@ -72,9 +59,7 @@ fun EditTransactionScreen(
             confirmButton = {
                 TextButton(onClick = {
                     val millis = dateState.selectedDateMillis
-                    if (millis != null) {
-                        selectedDate = millis.toLocalDate()
-                    }
+                    if (millis != null) selectedDate = millis.toLocalDate()
                     showDatePicker = false
                 }) {
                     Text("OK")
@@ -90,12 +75,7 @@ fun EditTransactionScreen(
         }
     }
 
-    /* ----------------------------------------
-       ✅ UI
-    -----------------------------------------*/
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbar) }
-    ) { padding ->
+    Scaffold { padding ->
 
         Column(
             modifier = Modifier
@@ -107,7 +87,6 @@ fun EditTransactionScreen(
 
             Text("Editar Transação", style = MaterialTheme.typography.headlineSmall)
 
-            /* DESCRIÇÃO */
             OutlinedTextField(
                 value = description,
                 onValueChange = { description = it },
@@ -115,7 +94,6 @@ fun EditTransactionScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            /* VALOR */
             OutlinedTextField(
                 value = valueText,
                 onValueChange = { valueText = it },
@@ -126,13 +104,9 @@ fun EditTransactionScreen(
             )
 
             if (isValueError) {
-                Text(
-                    "Valor inválido",
-                    color = MaterialTheme.colorScheme.error
-                )
+                Text("Valor inválido", color = MaterialTheme.colorScheme.error)
             }
 
-            /* TIPO */
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
                     selected = type == TransactionType.INCOME,
@@ -146,7 +120,6 @@ fun EditTransactionScreen(
                 )
             }
 
-            /* CATEGORIA */
             ExposedDropdownMenuBox(
                 expanded = categoryExpanded,
                 onExpandedChange = { categoryExpanded = !categoryExpanded }
@@ -154,12 +127,12 @@ fun EditTransactionScreen(
 
                 OutlinedTextField(
                     value = selectedCategory.label,
-                    onValueChange = {},
                     readOnly = true,
-                    label = { Text("Categoria") },
+                    onValueChange = {},
                     modifier = Modifier
                         .menuAnchor()
-                        .fillMaxWidth()
+                        .fillMaxWidth(),
+                    label = { Text("Categoria") }
                 )
 
                 ExposedDropdownMenu(
@@ -178,30 +151,25 @@ fun EditTransactionScreen(
                 }
             }
 
-            /* DATA */
             OutlinedButton(
                 onClick = { showDatePicker = true },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Data: ${selectedDate.toFormatted()}")
+                Text("Data: ${selectedDate.toString()}")
             }
 
             Spacer(Modifier.height(16.dp))
 
-            /* ✅ Salvar */
             Button(
                 onClick = {
-                    val updated = tx.copy(
+                    val updated = transaction.copy(
                         description = description,
-                        value = valueDouble ?: tx.value,
+                        value = valueDouble ?: transaction.value,
                         category = selectedCategory,
                         type = type,
-                        date = selectedDate     // ✅ mantém a escolha do usuário
+                        date = selectedDate
                     )
-                    scope.launch(Dispatchers.IO) {
-                        repo.add(updated)
-                    }
-                    onSave()
+                    onSave(updated)
                 },
                 enabled = canSave,
                 modifier = Modifier.fillMaxWidth()
@@ -209,7 +177,6 @@ fun EditTransactionScreen(
                 Text("Salvar alterações")
             }
 
-            /* ✅ Excluir */
             var showDeleteDialog by remember { mutableStateOf(false) }
 
             OutlinedButton(
@@ -230,12 +197,8 @@ fun EditTransactionScreen(
                     confirmButton = {
                         TextButton(
                             onClick = {
-                                scope.launch(Dispatchers.IO) {
-                                    repo.deleteById(tx.id)
-                                }
                                 showDeleteDialog = false
-                                onSave()
-                                onDelete()
+                                onDelete(transaction)
                             }
                         ) {
                             Text("Sim", color = MaterialTheme.colorScheme.error)
@@ -249,7 +212,6 @@ fun EditTransactionScreen(
                 )
             }
 
-            /* ✅ Cancelar */
             OutlinedButton(
                 onClick = onCancel,
                 modifier = Modifier.fillMaxWidth()
@@ -260,13 +222,9 @@ fun EditTransactionScreen(
     }
 }
 
-/* -----------------------
-   Helpers
-------------------------*/
+/* Helpers */
 
 fun Long.toLocalDate(): LocalDate =
     java.time.Instant.ofEpochMilli(this)
         .atZone(java.time.ZoneId.systemDefault())
         .toLocalDate()
-
-fun LocalDate.toFormatted() = this.toString()

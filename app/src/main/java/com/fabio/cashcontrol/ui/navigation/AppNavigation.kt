@@ -8,65 +8,63 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.navArgument
 import androidx.navigation.compose.rememberNavController
-import com.fabio.cashcontrol.data.TransactionRepositoryRoom
+import androidx.navigation.navArgument
+import com.fabio.cashcontrol.ui.AppViewModel
 import com.fabio.cashcontrol.ui.AddTransactionScreen
-import com.fabio.cashcontrol.ui.HomeScreen
-import com.fabio.cashcontrol.ui.HistoryScreen
 import com.fabio.cashcontrol.ui.EditTransactionScreen
-import kotlinx.coroutines.launch
+import com.fabio.cashcontrol.ui.HistoryScreen
+import com.fabio.cashcontrol.ui.HomeScreen
 
-/* ✅ Centralização das rotas */
+/* --------------------------------------------
+   ROTAS CENTRALIZADAS
+--------------------------------------------- */
 object Routes {
     const val HOME = "home"
     const val ADD = "add"
     const val EDIT = "edit/{id}"
     const val HISTORY = "history"
 
-    /** Helper para criar rotas completas */
     fun edit(id: String) = "edit/$id"
 }
 
+/* --------------------------------------------
+   NAVEGAÇÃO PRINCIPAL DO APP
+--------------------------------------------- */
 @Composable
 fun AppNavigation(
-    repo: TransactionRepositoryRoom
+    viewModel: AppViewModel
 ) {
     val navController: NavHostController = rememberNavController()
-    val scope = rememberCoroutineScope()
+
+    // 🔥 Estado global vindo do ViewModel
+    val uiState = viewModel.uiState.collectAsState().value
 
     NavHost(
         navController = navController,
         startDestination = Routes.HOME
     ) {
 
-        /* ---------------- HOME ---------------- */
+        /* ---------------------- HOME ---------------------- */
         composable(Routes.HOME) {
-
-            val all by repo.listAll().collectAsState(initial = emptyList())
-            val totals = repo.totals(all)
-
             Scaffold(
                 floatingActionButton = {
                     FloatingActionButton(
                         onClick = { navController.navigate(Routes.ADD) }
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = "Add")
+                        Icon(Icons.Default.Add, contentDescription = "Adicionar")
                     }
                 }
             ) { padding ->
-
                 HomeScreen(
-                    totalIncome = totals.income,
-                    totalExpense = totals.expense,
-                    transactions = all,
+                    totalIncome = uiState.totalIncome,
+                    totalExpense = uiState.totalExpense,
+                    transactions = uiState.transactions,
                     onAddClick = { navController.navigate(Routes.ADD) },
                     onHistoryClick = { navController.navigate(Routes.HISTORY) },
                     modifier = Modifier.padding(padding)
@@ -74,48 +72,50 @@ fun AppNavigation(
             }
         }
 
-        /* ---------------- ADD ---------------- */
+        /* ---------------------- ADD ---------------------- */
         composable(Routes.ADD) {
-
             AddTransactionScreen(
                 onSave = { tx ->
-                    scope.launch {
-                        repo.add(tx)
-                    }
+                    viewModel.addTransaction(tx)
                     navController.popBackStack()
                 },
                 onCancel = { navController.popBackStack() }
             )
         }
 
-        /* ---------------- EDIT ---------------- */
+        /* ---------------------- EDIT ---------------------- */
         composable(
             route = Routes.EDIT,
             arguments = listOf(
                 navArgument("id") { type = NavType.StringType }
             )
-        ) { backStackEntry ->
+        ) { entry ->
 
-            val txId = backStackEntry.arguments?.getString("id")
-                ?: return@composable   // failsafe
+            val txId = entry.arguments?.getString("id") ?: return@composable
+            val tx = viewModel.getTransaction(txId)
 
             EditTransactionScreen(
                 id = txId,
-                repo = repo,
-                onSave = { navController.popBackStack() },
-                onCancel = { navController.popBackStack() }
+                transaction = tx,              // 🔥 Passamos a transação
+                onSave = { updated ->
+                    viewModel.updateTransaction(updated)
+                    navController.popBackStack()
+                },
+                onCancel = { navController.popBackStack() },
+                onDelete = { del ->
+                    viewModel.deleteTransaction(del)
+                    navController.popBackStack()
+                }
             )
         }
 
-        /* ---------------- HISTORY ---------------- */
+        /* ---------------------- HISTORY ---------------------- */
         composable(Routes.HISTORY) {
-
             HistoryScreen(
-                repo = repo,
+                transactions = uiState.transactions,
                 onBack = { navController.popBackStack() },
-                onEdit = { id ->
-                    navController.navigate(Routes.edit(id))
-                }
+                onEdit = { id -> navController.navigate(Routes.edit(id)) },
+                onDelete = { tx -> viewModel.deleteTransaction(tx) }
             )
         }
     }

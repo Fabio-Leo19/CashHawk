@@ -3,99 +3,114 @@ package com.fabio.cashcontrol.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fabio.cashcontrol.data.TransactionRepositoryRoom
+import com.fabio.cashcontrol.model.Category
+import com.fabio.cashcontrol.model.Totals
 import com.fabio.cashcontrol.model.Transaction
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.update
+import com.fabio.cashcontrol.model.TransactionType
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-
-/**
- *  ----------------------------------------------------------------------
- *   ✅ AppViewModel
- *   Centraliza toda a lógica do app (UI + Dados).
- *   - Lista as transações
- *   - Calcula totais
- *   - Adiciona, edita e exclui
- *   - Obtém transação por ID
- *   - Prepara o app para backend futuramente
- *  ----------------------------------------------------------------------
- */
+import java.time.LocalDate
 
 class AppViewModel(
     private val repo: TransactionRepositoryRoom
 ) : ViewModel() {
 
-    /* ------------------------------------------------------------------
-       🔹 LISTA COMPLETA DE TRANSACOES
-       Fluxo vindo do banco Room
-    ------------------------------------------------------------------ */
+    // Flow bruto vindo do Room
     private val allTransactionsFlow = repo.listAll()
 
-    /* ------------------------------------------------------------------
-       🔹 Estado completo exposto à UI
-    ------------------------------------------------------------------ */
+    // Estado principal
     private val _uiState = MutableStateFlow(AppUiState())
     val uiState: StateFlow<AppUiState> = _uiState
 
     init {
-        /**
-         * Sempre que o banco de dados mudar, atualizamos o estado
-         */
         viewModelScope.launch {
             allTransactionsFlow.collect { list ->
-                _uiState.update { state ->
-                    state.copy(
+                val income = list.filter { it.type.isIncome }.sumOf { it.value }
+                val expense = list.filter { it.type.isExpense }.sumOf { it.value }
+
+                _uiState.update {
+                    it.copy(
                         transactions = list,
-                        totalIncome = list.filter { it.type.isIncome }.sumOf { it.value },
-                        totalExpense = list.filter { it.type.isExpense }.sumOf { it.value },
+                        totalIncome = income,
+                        totalExpense = expense
                     )
                 }
             }
         }
     }
 
-    /* ------------------------------------------------------------------
-       🔹 ADICIONAR TRANSAÇÃO
-    ------------------------------------------------------------------ */
-    fun addTransaction(tx: Transaction) {
-        viewModelScope.launch {
-            repo.add(tx)
+    // -------------------------------------------------------------------
+    // CRUD
+    // -------------------------------------------------------------------
+
+    fun addTransaction(tx: Transaction) = viewModelScope.launch {
+        repo.add(tx)
+    }
+
+    fun updateTransaction(tx: Transaction) = viewModelScope.launch {
+        repo.add(tx)
+    }
+
+    fun deleteTransaction(tx: Transaction) = viewModelScope.launch {
+        repo.deleteById(tx.id)
+    }
+
+    fun getTransaction(id: String): Transaction? =
+        _uiState.value.transactions.find { it.id == id }
+
+    fun getTransactionFlow(id: String): Flow<Transaction?> =
+        allTransactionsFlow.map { list -> list.find { it.id == id } }
+
+    // -------------------------------------------------------------------
+    // Funções avançadas (ETAPA 5)
+    // -------------------------------------------------------------------
+
+    /** Totais completos para qualquer lista */
+    fun calculateTotals(list: List<Transaction>): Totals {
+        val inc = list.filter { it.type == TransactionType.INCOME }.sumOf { it.value }
+        val exp = list.filter { it.type == TransactionType.EXPENSE }.sumOf { it.value }
+        return Totals(inc, exp)
+    }
+
+    /** Filtra por mês/ano */
+    fun filterByMonth(list: List<Transaction>, year: Int, month: Int): List<Transaction> =
+        list.filter { it.date.year == year && it.date.monthValue == month }
+
+    /** Filtra por tipo */
+    fun filterByType(list: List<Transaction>, type: TransactionType?): List<Transaction> =
+        type?.let { t -> list.filter { it.type == t } } ?: list
+
+    /** Filtra por categoria */
+    fun filterByCategory(list: List<Transaction>, category: Category?): List<Transaction> =
+        category?.let { c -> list.filter { it.category == c } } ?: list
+
+    /** Busca por texto */
+    fun search(list: List<Transaction>, query: String): List<Transaction> {
+        if (query.isBlank()) return list
+        val q = query.trim().lowercase()
+        return list.filter {
+            it.description.lowercase().contains(q) ||
+                    it.category.label.lowercase().contains(q)
         }
     }
 
-    /* ------------------------------------------------------------------
-       🔹 EDITAR TRANSAÇÃO
-    ------------------------------------------------------------------ */
-    fun updateTransaction(tx: Transaction) {
-        viewModelScope.launch {
-            repo.add(tx) // Room faz upsert = atualiza ou cria
+    /** Ordenação */
+    fun sort(
+        list: List<Transaction>,
+        by: SortBy,
+        dir: SortDir
+    ): List<Transaction> {
+        val sorted = when (by) {
+            SortBy.DATE -> list.sortedBy { it.date }
+            SortBy.VALUE -> list.sortedBy { it.value }
         }
-    }
-
-    /* ------------------------------------------------------------------
-       🔹 DELETAR TRANSAÇÃO
-    ------------------------------------------------------------------ */
-    fun deleteTransaction(tx: Transaction) {
-        viewModelScope.launch {
-            repo.deleteById(tx.id)
-        }
-    }
-
-    /* ------------------------------------------------------------------
-       🔹 BUSCAR TRANSAÇÃO POR ID
-    ------------------------------------------------------------------ */
-    fun getTransaction(id: String): Transaction? {
-        return _uiState.value.transactions.find { it.id == id }
+        return if (dir == SortDir.DESC) sorted.reversed() else sorted
     }
 }
 
-/**
- *  ----------------------------------------------------------------------
- *  📦 Estado completo do App
- *  Tudo que a UI precisa observar e atualizar automaticamente
- *  ----------------------------------------------------------------------
- */
+// -------------------------------------------------------------------
+// Estado da UI
+// -------------------------------------------------------------------
 data class AppUiState(
     val transactions: List<Transaction> = emptyList(),
     val totalIncome: Double = 0.0,
@@ -104,13 +119,6 @@ data class AppUiState(
     val balance: Double get() = totalIncome - totalExpense
 }
 
-/**
- *  ----------------------------------------------------------------------
- *  🏷 Helpers de tipo
- *  ----------------------------------------------------------------------
- */
-val com.fabio.cashcontrol.model.TransactionType.isIncome: Boolean
-    get() = this.name == "INCOME"
-
-val com.fabio.cashcontrol.model.TransactionType.isExpense: Boolean
-    get() = this.name == "EXPENSE"
+// MELHORES HELPERS (sem comparar string)
+val TransactionType.isIncome: Boolean get() = this == TransactionType.INCOME
+val TransactionType.isExpense: Boolean get() = this == TransactionType.EXPENSE

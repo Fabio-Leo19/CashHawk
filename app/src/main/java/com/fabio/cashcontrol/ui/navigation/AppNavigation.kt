@@ -42,7 +42,7 @@ fun AppNavigation(
 ) {
     val navController: NavHostController = rememberNavController()
 
-    // 🔥 Estado global vindo do ViewModel
+    // Estado global vindo do ViewModel
     val uiState = viewModel.uiState.collectAsState().value
 
     NavHost(
@@ -62,9 +62,7 @@ fun AppNavigation(
                 }
             ) { padding ->
                 HomeScreen(
-                    totalIncome = uiState.totalIncome,
-                    totalExpense = uiState.totalExpense,
-                    transactions = uiState.transactions,
+                    viewModel = viewModel,
                     onAddClick = { navController.navigate(Routes.ADD) },
                     onHistoryClick = { navController.navigate(Routes.HISTORY) },
                     modifier = Modifier.padding(padding)
@@ -96,7 +94,7 @@ fun AppNavigation(
 
             EditTransactionScreen(
                 id = txId,
-                transaction = tx,              // 🔥 Passamos a transação
+                transaction = tx,
                 onSave = { updated ->
                     viewModel.updateTransaction(updated)
                     navController.popBackStack()

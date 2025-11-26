@@ -47,13 +47,13 @@ fun HistoryScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    /* Limite mensal */
+    // Limite mensal
     val savedLimit by SettingsStore.getMonthlyLimit(context)
         .collectAsState(initial = null)
 
     var monthlyLimit by remember { mutableStateOf(savedLimit) }
 
-    /* Filtros */
+    // Filtros de data
     val now = LocalDate.now()
 
     var selectedMonth by remember { mutableStateOf(now.monthValue) }
@@ -68,25 +68,27 @@ fun HistoryScreen(
 
     val years = (now.year downTo now.year - 10).toList()
 
+    // Filtros de tipo / categoria
     var typeFilter: TransactionType? by remember { mutableStateOf(null) }
+    val categories = Category.values().toList()
     var categoryFilter: Category? by remember { mutableStateOf(null) }
     var categoryExpanded by remember { mutableStateOf(false) }
 
     var query by remember { mutableStateOf("") }
 
-    /* Ordenação */
+    // Ordenação
     var sortBy by remember { mutableStateOf(SortBy.DATE) }
     var sortDir by remember { mutableStateOf(SortDir.DESC) }
     var sortMenuExpanded by remember { mutableStateOf(false) }
 
-    /* Calcular total do mês */
+    // Total de despesas do mês (todos os filtros de tipo/categoria ignorados aqui)
     val monthlyExpense = transactions
         .filter { it.date.monthValue == selectedMonth && it.date.year == selectedYear && it.type == TransactionType.EXPENSE }
         .sumOf { it.value }
 
     val overLimit = monthlyLimit?.let { monthlyExpense > it } ?: false
 
-    /* Aplicar filtros */
+    // Aplicar filtros na lista
     val filtered = transactions
         .filter { it.date.year == selectedYear && it.date.monthValue == selectedMonth }
         .filter { typeFilter?.let { t -> it.type == t } ?: true }
@@ -95,8 +97,8 @@ fun HistoryScreen(
             if (query.isBlank()) true
             else {
                 val q = query.trim().lowercase()
-                it.description.lowercase().contains(q)
-                        || it.category.label.lowercase().contains(q)
+                it.description.lowercase().contains(q) ||
+                        it.category.label.lowercase().contains(q)
             }
         }
         .let { list ->
@@ -123,6 +125,7 @@ fun HistoryScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
 
+        // Top bar
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
@@ -173,7 +176,7 @@ fun HistoryScreen(
             }
         }
 
-        /* Filtros de Mês e Ano */
+        // Filtros de Mês e Ano
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth()
@@ -242,7 +245,68 @@ fun HistoryScreen(
             }
         }
 
-        /* Busca + Ordenação */
+        // Filtro por tipo (Todos / Receitas / Despesas)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            FilterChip(
+                selected = typeFilter == null,
+                onClick = { typeFilter = null },
+                label = { Text("Todos") }
+            )
+            FilterChip(
+                selected = typeFilter == TransactionType.INCOME,
+                onClick = { typeFilter = TransactionType.INCOME },
+                label = { Text("Receitas") }
+            )
+            FilterChip(
+                selected = typeFilter == TransactionType.EXPENSE,
+                onClick = { typeFilter = TransactionType.EXPENSE },
+                label = { Text("Despesas") }
+            )
+        }
+
+        // Filtro por categoria
+        ExposedDropdownMenuBox(
+            expanded = categoryExpanded,
+            onExpandedChange = { categoryExpanded = !categoryExpanded }
+        ) {
+            OutlinedTextField(
+                value = categoryFilter?.label ?: "Todas as categorias",
+                onValueChange = {},
+                readOnly = true,
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth(),
+                label = { Text("Categoria") }
+            )
+
+            ExposedDropdownMenu(
+                expanded = categoryExpanded,
+                onDismissRequest = { categoryExpanded = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Todas") },
+                    onClick = {
+                        categoryFilter = null
+                        categoryExpanded = false
+                    }
+                )
+
+                categories.forEach { cat ->
+                    DropdownMenuItem(
+                        text = { Text(cat.label) },
+                        onClick = {
+                            categoryFilter = cat
+                            categoryExpanded = false
+                        }
+                    )
+                }
+            }
+        }
+
+        // Busca + Ordenação
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth()
@@ -318,7 +382,7 @@ fun HistoryScreen(
             }
         }
 
-        /* Limite mensal */
+        // Limite mensal
         OutlinedTextField(
             value = monthlyLimit?.toString() ?: "",
             onValueChange = {
@@ -351,24 +415,25 @@ fun HistoryScreen(
 
             items(filtered, key = { it.id }) { tx ->
 
-                val dismissState = rememberDismissState(
-                    confirmStateChange = { newValue ->
-                        when (newValue) {
+                val dismissState =
+                    rememberDismissState(
+                        confirmStateChange = { newValue ->
+                            when (newValue) {
 
-                            DismissValue.DismissedToStart -> {
-                                onDelete(tx)
-                                true
+                                DismissValue.DismissedToStart -> {
+                                    onDelete(tx)
+                                    true
+                                }
+
+                                DismissValue.DismissedToEnd -> {
+                                    onEdit(tx.id)
+                                    false
+                                }
+
+                                else -> false
                             }
-
-                            DismissValue.DismissedToEnd -> {
-                                onEdit(tx.id)
-                                false
-                            }
-
-                            else -> false
                         }
-                    }
-                )
+                    )
 
                 SwipeToDismiss(
                     state = dismissState,

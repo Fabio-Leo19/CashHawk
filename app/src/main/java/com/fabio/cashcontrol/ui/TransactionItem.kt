@@ -1,8 +1,5 @@
 package com.fabio.cashcontrol.ui
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -11,20 +8,25 @@ import androidx.compose.material.DismissDirection
 import androidx.compose.material.DismissValue
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.SwipeToDismiss
-import androidx.compose.material.rememberDismissState
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.*
-import androidx.compose.ui.draw.clip
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.rememberDismissState
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.fabio.cashcontrol.model.Transaction
 import java.time.format.DateTimeFormatter
 
+private val CardBackground = Color(0xFF292929)
+private val Gold = Color(0xFFD4A048)
 
 @OptIn(ExperimentalMaterialApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -35,26 +37,28 @@ fun TransactionItem(
     onDelete: (String) -> Unit = {}
 ) {
 
-    /* ----------------------------
-        SWIPE STATE
-    ---------------------------- */
-    val dismissState = rememberDismissState()
+    val dismissState = rememberDismissState { value ->
+        when (value) {
+            DismissValue.DismissedToEnd -> {
+                onEdit(transaction.id)
+                false
+            }
 
-    // Quando swipe completa → deletar
-    if (dismissState.isDismissed(DismissDirection.EndToStart)) {
-        onDelete(transaction.id)
-    }
-    if (dismissState.isDismissed(DismissDirection.StartToEnd)) {
-        onEdit(transaction.id)
+            DismissValue.DismissedToStart -> {
+                onDelete(transaction.id)
+                true
+            }
+
+            else -> false
+        }
     }
 
     SwipeToDismiss(
         state = dismissState,
         directions = setOf(
-            DismissDirection.StartToEnd,  // Edit
-            DismissDirection.EndToStart   // Delete
+            DismissDirection.StartToEnd,
+            DismissDirection.EndToStart
         ),
-
         background = {
             val direction = dismissState.dismissDirection ?: return@SwipeToDismiss
 
@@ -64,29 +68,41 @@ fun TransactionItem(
 
             when (direction) {
                 DismissDirection.StartToEnd -> {
-                    bgColor = MaterialTheme.colorScheme.primary
+                    bgColor = Color(0x3322C55E)
                     icon = Icons.Default.Edit
                     actionText = "Editar"
                 }
+
                 DismissDirection.EndToStart -> {
-                    bgColor = MaterialTheme.colorScheme.error
+                    bgColor = Color(0x33FF5252)
                     icon = Icons.Default.Delete
                     actionText = "Excluir"
                 }
             }
 
-            Box(
+            Row(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(bgColor)
                     .padding(horizontal = 24.dp),
-                contentAlignment = if (direction == DismissDirection.StartToEnd)
-                    Alignment.CenterStart else Alignment.CenterEnd
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Icon(icon, contentDescription = actionText, tint = Color.White)
+                if (direction == DismissDirection.StartToEnd) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(icon, contentDescription = actionText, tint = Color.White)
+                        Spacer(Modifier.width(8.dp))
+                        Text(actionText, color = Color.White)
+                    }
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(actionText, color = Color.White)
+                        Spacer(Modifier.width(8.dp))
+                        Icon(icon, contentDescription = actionText, tint = Color.White)
+                    }
+                }
             }
         },
-
         dismissContent = {
             TransactionCard(
                 transaction = transaction,
@@ -96,9 +112,6 @@ fun TransactionItem(
     )
 }
 
-/* ---------------------------
-   CARD PRINCIPAL
----------------------------- */
 @Composable
 private fun TransactionCard(
     transaction: Transaction,
@@ -106,18 +119,17 @@ private fun TransactionCard(
 ) {
     val isIncome = transaction.type.name == "INCOME"
     val icon = if (isIncome) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward
-    val color = if (isIncome) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+    val color = if (isIncome) Gold else MaterialTheme.colorScheme.error
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp)
+            .padding(vertical = 4.dp)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = CardBackground),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -125,12 +137,19 @@ private fun TransactionCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
 
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier.size(26.dp)
-            )
+            Surface(
+                color = color.copy(alpha = 0.15f),
+                shape = RoundedCornerShape(999.dp)
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier
+                        .size(28.dp)
+                        .padding(4.dp)
+                )
+            }
 
             Spacer(modifier = Modifier.width(10.dp))
 
@@ -139,7 +158,8 @@ private fun TransactionCard(
                     text = transaction.description,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.SemiBold
-                    )
+                    ),
+                    color = Color.White
                 )
                 Text(
                     text = "${transaction.category.label} • ${formatDate(transaction)}",
@@ -158,10 +178,6 @@ private fun TransactionCard(
         }
     }
 }
-
-/* ------------------------------------
-      HELPERS
-------------------------------------*/
 
 private fun formatDate(tx: Transaction): String {
     val formatter = DateTimeFormatter.ofPattern("dd/MM")

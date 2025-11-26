@@ -1,19 +1,20 @@
 package com.fabio.cashcontrol.data
 
 import androidx.room.*
+import com.fabio.cashcontrol.model.Transaction
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface TransactionDao {
 
     @Query("SELECT * FROM transactions ORDER BY date DESC")
-    fun listAll(): Flow<List<TransactionEntity>>
+    fun listAll(): Flow<List<Transaction>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(tx: TransactionEntity)
+    suspend fun insert(tx: Transaction)
 
     @Delete
-    suspend fun delete(tx: TransactionEntity)
+    suspend fun delete(tx: Transaction)
 
     @Query("DELETE FROM transactions WHERE id = :id")
     suspend fun deleteById(id: String)
@@ -29,5 +30,5 @@ interface TransactionDao {
     fun listByMonth(
         year: String,
         month: String
-    ): Flow<List<TransactionEntity>>
+    ): Flow<List<Transaction>>
 }

@@ -13,7 +13,7 @@ data class Transaction(
     val description: String,
     val value: Double,
 
-    // ✅ LocalDate → convertido via TypeConverter
+    // LocalDate armazenado via TypeConverter
     val date: LocalDate = LocalDate.now(),
 
     val category: Category = Category.OUTROS,

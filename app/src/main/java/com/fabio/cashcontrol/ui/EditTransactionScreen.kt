@@ -1,11 +1,14 @@
 package com.fabio.cashcontrol.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.fabio.cashcontrol.model.Category
@@ -18,6 +21,20 @@ import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.rememberDatePickerState
 
+private val ScreenBg = Color(0xFF1E1F26)
+private val CardBg = Color(0xFF292929)
+private val GoldAccent = Color(0xFFD4A048)
+
+private val CashHawkGradient = Brush.horizontalGradient(
+    listOf(
+        Color(0xFFCBA135),
+        Color(0xFFFFFFFF),
+        Color(0xFFD5AB44),
+        Color(0xFFFFFFFF),
+        Color(0xFFD5AB44),
+    )
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditTransactionScreen(
@@ -29,10 +46,12 @@ fun EditTransactionScreen(
 ) {
     if (transaction == null) {
         Box(
-            Modifier.fillMaxSize(),
+            Modifier
+                .fillMaxSize()
+                .background(ScreenBg),
             contentAlignment = Alignment.Center
         ) {
-            Text("Carregando…")
+            Text("Carregando…", color = Color.White)
         }
         return
     }
@@ -75,91 +94,118 @@ fun EditTransactionScreen(
         }
     }
 
-    Scaffold { padding ->
-
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(ScreenBg)
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
 
-            Text("Editar Transação", style = MaterialTheme.typography.headlineSmall)
-
-            OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
-                label = { Text("Descrição") },
-                modifier = Modifier.fillMaxWidth()
+            Text(
+                "Editar Transação",
+                style = MaterialTheme.typography.titleLarge,
+                color = GoldAccent
             )
 
-            OutlinedTextField(
-                value = valueText,
-                onValueChange = { valueText = it },
-                label = { Text("Valor") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            Card(
                 modifier = Modifier.fillMaxWidth(),
-                isError = isValueError
-            )
-
-            if (isValueError) {
-                Text("Valor inválido", color = MaterialTheme.colorScheme.error)
-            }
-
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(
-                    selected = type == TransactionType.INCOME,
-                    onClick = { type = TransactionType.INCOME },
-                    label = { Text("Receita") }
-                )
-                FilterChip(
-                    selected = type == TransactionType.EXPENSE,
-                    onClick = { type = TransactionType.EXPENSE },
-                    label = { Text("Despesa") }
-                )
-            }
-
-            ExposedDropdownMenuBox(
-                expanded = categoryExpanded,
-                onExpandedChange = { categoryExpanded = !categoryExpanded }
+                colors = CardDefaults.cardColors(containerColor = CardBg),
+                shape = MaterialTheme.shapes.large
             ) {
-
-                OutlinedTextField(
-                    value = selectedCategory.label,
-                    readOnly = true,
-                    onValueChange = {},
+                Column(
                     modifier = Modifier
-                        .menuAnchor()
-                        .fillMaxWidth(),
-                    label = { Text("Categoria") }
-                )
-
-                ExposedDropdownMenu(
-                    expanded = categoryExpanded,
-                    onDismissRequest = { categoryExpanded = false }
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    categories.forEach { cat ->
-                        DropdownMenuItem(
-                            text = { Text(cat.label) },
-                            onClick = {
-                                selectedCategory = cat
-                                categoryExpanded = false
-                            }
+
+                    OutlinedTextField(
+                        value = description,
+                        onValueChange = { description = it },
+                        label = { Text("Descrição") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = outlinedColorsEdit()
+                    )
+
+                    OutlinedTextField(
+                        value = valueText,
+                        onValueChange = { valueText = it },
+                        label = { Text("Valor") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                        isError = isValueError,
+                        colors = outlinedColorsEdit()
+                    )
+
+                    if (isValueError) {
+                        Text("Valor inválido", color = MaterialTheme.colorScheme.error)
+                    }
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = type == TransactionType.INCOME,
+                            onClick = { type = TransactionType.INCOME },
+                            label = { Text("Receita") }
                         )
+                        FilterChip(
+                            selected = type == TransactionType.EXPENSE,
+                            onClick = { TransactionType.EXPENSE.also { type = it } },
+                            label = { Text("Despesa") }
+                        )
+                    }
+
+                    ExposedDropdownMenuBox(
+                        expanded = categoryExpanded,
+                        onExpandedChange = { categoryExpanded = !categoryExpanded }
+                    ) {
+
+                        OutlinedTextField(
+                            value = selectedCategory.label,
+                            readOnly = true,
+                            onValueChange = {},
+                            modifier = Modifier
+                                .menuAnchor()
+                                .fillMaxWidth(),
+                            label = { Text("Categoria") },
+                            colors = outlinedColorsEdit()
+                        )
+
+                        ExposedDropdownMenu(
+                            expanded = categoryExpanded,
+                            onDismissRequest = { categoryExpanded = false }
+                        ) {
+                            categories.forEach { cat ->
+                                DropdownMenuItem(
+                                    text = { Text(cat.label) },
+                                    onClick = {
+                                        selectedCategory = cat
+                                        categoryExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    OutlinedButton(
+                        onClick = { showDatePicker = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = GoldAccent
+                        )
+                    ) {
+                        Text("Data: ${selectedDate}")
                     }
                 }
             }
 
-            OutlinedButton(
-                onClick = { showDatePicker = true },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Data: ${selectedDate.toString()}")
-            }
+            Spacer(Modifier.height(8.dp))
 
-            Spacer(Modifier.height(16.dp))
-
+            // Salvar (gradiente)
             Button(
                 onClick = {
                     val updated = transaction.copy(
@@ -172,16 +218,42 @@ fun EditTransactionScreen(
                     onSave(updated)
                 },
                 enabled = canSave,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Transparent,
+                    disabledContainerColor = Color(0xFF3A3A3A)
+                ),
+                contentPadding = PaddingValues()
             ) {
-                Text("Salvar alterações")
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            if (canSave) CashHawkGradient else Brush.verticalGradient(
+                                listOf(Color(0xFF3A3A3A), Color(0xFF3A3A3A))
+                            ),
+                            shape = MaterialTheme.shapes.large
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "Salvar alterações",
+                        color = if (canSave) Color.Black else Color(0xFF777777),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
             }
 
+            // Excluir
             var showDeleteDialog by remember { mutableStateOf(false) }
 
             OutlinedButton(
                 onClick = { showDeleteDialog = true },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
                 colors = ButtonDefaults.outlinedButtonColors(
                     contentColor = MaterialTheme.colorScheme.error
                 )
@@ -214,7 +286,12 @@ fun EditTransactionScreen(
 
             OutlinedButton(
                 onClick = onCancel,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = Color.White
+                )
             ) {
                 Text("Cancelar")
             }
@@ -222,9 +299,17 @@ fun EditTransactionScreen(
     }
 }
 
-/* Helpers */
-
-fun Long.toLocalDate(): LocalDate =
+private fun Long.toLocalDate(): LocalDate =
     java.time.Instant.ofEpochMilli(this)
         .atZone(java.time.ZoneId.systemDefault())
         .toLocalDate()
+
+@Composable
+private fun outlinedColorsEdit() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = GoldAccent,
+    unfocusedBorderColor = Color(0x55FFFFFF),
+    focusedLabelColor = GoldAccent,
+    unfocusedLabelColor = Color(0x88FFFFFF),
+    focusedTextColor = Color.White,
+    unfocusedTextColor = Color.White
+)

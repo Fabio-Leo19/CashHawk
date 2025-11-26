@@ -5,58 +5,56 @@ import com.fabio.cashcontrol.model.Transaction
 import com.fabio.cashcontrol.model.TransactionType
 import com.fabio.cashcontrol.model.Totals
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 
 class TransactionRepositoryRoom(
     private val dao: TransactionDao
 ) {
 
-    // ✅ Lista tudo
+    // Lista tudo diretamente do Room
     fun listAll(): Flow<List<Transaction>> =
-        dao.listAll().map { list ->
-            list.map { it.toModel() }
-        }
+        dao.listAll()
 
-    // ✅ Inserir
+    // Inserir / atualizar (upsert)
     suspend fun add(tx: Transaction) {
-        dao.insert(tx.toEntity())
+        dao.insert(tx)
     }
 
-    // ✅ Remover objeto
+    // Remover objeto
     suspend fun delete(tx: Transaction) {
-        dao.delete(tx.toEntity())
+        dao.delete(tx)
     }
 
-    // ✅ Remover por ID
+    // Remover por ID
     suspend fun deleteById(id: String) {
         dao.deleteById(id)
     }
 
-    // ✅ Lista por ano / mês
+    // Lista por ano / mês
     fun listByMonth(year: Int, month: Int): Flow<List<Transaction>> =
         dao.listByMonth(
             year.toString(),
             month.toString().padStart(2, '0')
-        ).map { list ->
-            list.map { it.toModel() }
-        }
+        )
 
-
-
-    // ✅ Totais (mesma lógica do core antigo)
+    // Totais
     fun totals(transactions: List<Transaction>): Totals {
-        val income = transactions.filter { it.type == TransactionType.INCOME }.sumOf { it.value }
-        val expense = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.value }
+        val income = transactions
+            .filter { it.type == TransactionType.INCOME }
+            .sumOf { it.value }
+        val expense = transactions
+            .filter { it.type == TransactionType.EXPENSE }
+            .sumOf { it.value }
         return Totals(income, expense)
     }
 
-    // ✅ Totais por categoria
+    // Totais por categoria (para despesas)
     fun totalsByCategory(transactions: List<Transaction>): Map<Category, Double> =
-        transactions.filter { it.type == TransactionType.EXPENSE }
+        transactions
+            .filter { it.type == TransactionType.EXPENSE }
             .groupBy { it.category }
             .mapValues { (_, list) -> list.sumOf { it.value } }
 
-    // ✅ Inserts fake (opcional para testes)
+    // Dados fake (opcional para testes)
     suspend fun seedSample() {
         add(
             Transaction(

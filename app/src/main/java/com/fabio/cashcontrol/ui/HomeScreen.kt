@@ -17,7 +17,7 @@ import com.fabio.cashcontrol.ui.components.BarChartView
 import com.fabio.cashcontrol.ui.components.PieChartView
 import java.time.LocalDate
 
-// Cores base do tema CashHawk
+// Cores base do tema
 private val DarkBackground = Color(0xFF1E1F26)
 private val CardBackground = Color(0xFF292929)
 private val Gold = Color(0xFFD4A048)
@@ -55,7 +55,7 @@ fun HomeScreen(
 }
 
 /* -----------------------------------------------------------
-   UI PRINCIPAL – estilo CashHawk Pro
+   UI PRINCIPAL
 ------------------------------------------------------------ */
 @OptIn(ExperimentalMaterialApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -315,7 +315,7 @@ fun HomeScreen(
             }
         }
 
-        // FAB de adicionar transação, estilo PicPay / CashHawk
+        // FAB de adicionar transação
         FloatingActionButton(
             onClick = onAddClick,
             modifier = Modifier

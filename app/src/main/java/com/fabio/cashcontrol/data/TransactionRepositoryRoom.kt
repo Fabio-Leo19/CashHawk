@@ -14,7 +14,7 @@ class TransactionRepositoryRoom(
     fun listAll(): Flow<List<Transaction>> =
         dao.listAll()
 
-    // Inserir / atualizar (upsert)
+    // Inserir / atualizar
     suspend fun add(tx: Transaction) {
         dao.insert(tx)
     }
@@ -47,14 +47,14 @@ class TransactionRepositoryRoom(
         return Totals(income, expense)
     }
 
-    // Totais por categoria (para despesas)
+    // Totais por categoria
     fun totalsByCategory(transactions: List<Transaction>): Map<Category, Double> =
         transactions
             .filter { it.type == TransactionType.EXPENSE }
             .groupBy { it.category }
             .mapValues { (_, list) -> list.sumOf { it.value } }
 
-    // Dados fake (opcional para testes)
+    // Dados fake
     suspend fun seedSample() {
         add(
             Transaction(

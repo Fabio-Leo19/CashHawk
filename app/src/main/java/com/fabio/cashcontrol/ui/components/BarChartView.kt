@@ -12,10 +12,7 @@ import com.github.mikephil.charting.data.BarEntry
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
 
 /**
- * ✅ Exibe um gráfico de barras simples (Receitas x Despesas)
- *
- * @param income Valor total de receitas
- * @param expense Valor total de despesas
+ *(Receitas x Despesas)
  */
 @Composable
 fun BarChartView(
@@ -30,13 +27,13 @@ fun BarChartView(
 
             BarChart(context).apply {
 
-                /* ✅ ENTRADAS DO GRÁFICO */
+                /* ENTRADAS DO GRÁFICO */
                 val entries = listOf(
                     BarEntry(0f, income.toFloat()),
                     BarEntry(1f, expense.toFloat())
                 )
 
-                /* ✅ CONJUNTO DE DADOS */
+                /* CONJUNTO DE DADOS */
                 val dataSet = BarDataSet(entries, "Resumo").apply {
                     colors = listOf(
                         Color.rgb(76, 175, 80),   // Verde – Receitas
@@ -47,7 +44,7 @@ fun BarChartView(
 
                 data = BarData(dataSet)
 
-                /* ✅ EIXO X */
+                /* EIXO X */
                 xAxis.apply {
                     position = XAxis.XAxisPosition.BOTTOM
                     setDrawGridLines(false)
@@ -57,7 +54,7 @@ fun BarChartView(
                     )
                 }
 
-                /* ✅ APARÊNCIA */
+                /* APARÊNCIA */
                 axisRight.isEnabled = false
                 description.isEnabled = false
                 legend.isEnabled = true

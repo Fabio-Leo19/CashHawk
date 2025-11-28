@@ -62,7 +62,7 @@ class AppViewModel(
         allTransactionsFlow.map { list -> list.find { it.id == id } }
 
     // -------------------------------------------------------------------
-    // Funções avançadas (ETAPA 5)
+    // Funções avançadas
     // -------------------------------------------------------------------
 
     /** Totais completos para qualquer lista */

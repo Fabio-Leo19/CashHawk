@@ -81,7 +81,7 @@ fun HistoryScreen(
     var sortDir by remember { mutableStateOf(SortDir.DESC) }
     var sortMenuExpanded by remember { mutableStateOf(false) }
 
-    // Total de despesas do mês (todos os filtros de tipo/categoria ignorados aqui)
+    // Total de despesas do mês
     val monthlyExpense = transactions
         .filter { it.date.monthValue == selectedMonth && it.date.year == selectedYear && it.type == TransactionType.EXPENSE }
         .sumOf { it.value }
